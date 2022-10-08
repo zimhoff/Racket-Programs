@@ -1,0 +1,33 @@
+#lang racket
+(define (parse! s)
+  (cond [(string? s) (parse! ( create-scanner s))]
+        [(number! (peek s)) (pop! s)]
+        [(string=? "<" (peeks))
+         {let*{[_ (pop! s)]
+               [the-inside-expr (parse! s)]
+               [_ (pop! s)]
+               }
+           (make-paren the-inside-expr)}]
+        [(string=? "#" (peek s))
+         (let* {[open-hash (pop! s)]
+                [lefty (parse! s)]
+                [_ (if (not (member? (peek s ) OPS))
+                      (error 'parse "Unknown op " (peek s))
+                             'keep-on-going)]
+                   [op (pop! s)]
+                   [righty (parse! s)]
+                   [close-hash (pop!s)]
+                   }
+           (make-binop lefty or righty))]
+        [(string=? "even" (peek s))
+         (let*{[_ (pop! s)]
+               [_ (pop! s)]
+               [the-test (parse! s)]
+               [_ (pop! s)]
+               [the-even-ans (parse! s)]
+               [_ (pop! s)]
+               [the-odd-ans (parse! s)]
+               [_ (pop! s)]
+               }
+           (make-parity the-test the-even-ans the-odd-ans))
+         [else (error 'parse! (format "syntax error " (peek s)))]]))
