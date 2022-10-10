@@ -4,222 +4,206 @@
 (require parser-tools/lex-sre)
 
 
-(define tokenizer
+(define make_token
   (lexer
    [(eof) '()]
 
    [(:or "write")
-    (cons ` (write)
-          (tokenizer input-port))]
+    (cons `write
+          (make_token input-port))]
    [(:or "read")
-    (cons ` (read)
-          (tokenizer input-port))]
+    (cons `read
+          (make_token input-port))]
      
    [(:+ (:or (char-range #\a #\z)(char-range #\A #\Z)))
-    (cons `(ID)
-              (tokenizer input-port))]
+    (cons `ID
+              (make_token input-port))]
    [#\(
-    (cons `(LPAR)
-          (tokenizer input-port))]
+    (cons `LPAR
+          (make_token input-port))]
    [#\)
-    (cons `(RPAR)
-          (tokenizer input-port))]
+    (cons `RPAR
+          (make_token input-port))]
    [#\-
-    (cons `(-)
-          (tokenizer input-port))]
+    (cons `-
+          (make_token input-port))]
    [#\+
-    (cons `(+)
-     (tokenizer input-port))]
+    (cons `+
+     (make_token input-port))]
    [#\*
-    (cons `(*)
-     (tokenizer input-port))]
+    (cons `*
+     (make_token input-port))]
    [#\/
-    (cons `(/)
-     (tokenizer input-port))]
+    (cons `/
+     (make_token input-port))]
    [(:+ (:or #\: #\=))
-        (cons `(:=)
-              (tokenizer input-port))]
+        (cons `:=
+              (make_token input-port))]
    [(:+ (:or #\$ #\$))
-        (cons `($$)
-              (tokenizer input-port))]
+        (cons `$$
+              (make_token input-port))]
    [#\$
     (cons `(END, (string->symbol lexeme))
-          (tokenizer input-port))]
+          (make_token input-port))]
    
    [(:: (:? #\-)(:+ (char-range #\0 #\9)))
-        (cons `(INT)
-             (tokenizer input-port))]
-   
-   
-   
-   [whitespace (tokenizer input-port)]
+        (cons `INT
+             (make_token input-port))]
+
+   [whitespace (make_token input-port)]
    ))
-(define tokens(tokenizer(open-input-file "input02.txt"))) ;testing
+
+(define tokens(make_token(open-input-file "input01.txt"))) ;testing
 tokens  ;testing
 
 ;(define input-port (open-input-file fileName))
-
-;(define (parser input-file)
- ;(program (tokenizer (open-input-file inputFile)))
- ;)
-
-;(define (syntaxError)
- ; (printf "Syntax error")
- ; (exit 0))
   
-  (define (RPAR tokens)
-    [cond
-      [(equal? (first tokens) ")" (rest tokens))]])
+(define (RPAR tokens)
+  [cond
+    [(equal? (first tokens) ")" (rest tokens))]])
 
-  (define (ass_op tokens)
-    [cond
-      [(equal? (first tokens) ":=" (rest tokens))]])
-  (define (ID tokens)
-    [cond
-      [(equal? (first tokens) "ID" (rest tokens))]])
-  (define (error)
-    (printf "error"))
+(define (ass_op tokens)
+  [cond
+    [(equal? (first tokens) ":=" (rest tokens))]])
 
-  ;(define ($$ tokens)
-    ;[cond
-     ; [(equal? (first tokens) "$$" (rest tokens))]])
+(define (ID tokens)
+  [cond
+    [(equal? (first tokens) "ID" (rest tokens))]])
 
+(define (error)
+  (printf "error"))
 
-   (define (mult_op tokens)
+;(define ($$ tokens)
+  ;[cond
+    ;[(equal? (first tokens) "$$" (rest tokens))]])
+
+(define (match expected tokens)
   (cond
-    [(equal? (first tokens) "*") (rest tokens)]
-    [(equal? (first tokens) "/") (rest tokens)]
-    [else (error)]))
+    [(equal? (first tokens) expected)
+      (rest tokens)]
+     [else print"error"]))
+    ;[(equal? (first tokens) tokens (rest tokens))]
 
-  (define (add_op tokens)
+(define (program tokens)
     (cond
-     [(equal? (first tokens) "+")]
-     [(equal? (first tokens) "-")]
-     [else (error)]))
+    ;(case (first(first tokens))
+      ;[(ID read write $$)(stmt_list (rest tokens))]
+      [(equal? (first tokens)`ID) (stmt_list tokens)]
+      [(equal? (first tokens)`read) (stmt_list tokens)]
+      [(equal? (first tokens)`write) (stmt_list tokens)]
+      [(equal? (first tokens)`$$) (stmt_list tokens)]
+      [(equal? (first tokens)`$$) (match `$$ tokens)]
+      [else (print "1")]))
 
-  (define (factor tokens)
+(define (stmt_list tokens)
+    (cond
+    ;(case (first (first tokens))
+      ;[(ID read write :=) (stmt_list(stmt (rest tokens)))]
+      ;[($$) tokens]
+      [(equal? (first tokens)`ID) (stmt_list(stmt tokens))]
+      [(equal? (first tokens)`read) (stmt_list(stmt tokens))]
+      [(equal? (first tokens)`write) (stmt_list(stmt tokens))]
+      [(equal? (first tokens)`$$) (stmt_list(stmt tokens))]
+      [(equal? `$$ (first tokens)) tokens]
+      [else ( print"1")]))
+
+(define (stmt tokens)
+    (cond
+    ;(case (first (first tokens))
+      ;[(ID)(expr(ass_op(rest tokens)))]
+      ;[(read)(ID(rest tokens))]
+      ;[(write)(expr(rest tokens))]
+      [(equal? (first tokens)'ID) (expr (match `:= (match `ID tokens)))]
+      [(equal? (first tokens)`read) (match `ID (match `read tokens))]
+      [(equal? (first tokens)`write) (expr (match `write tokens))]
+      [else (print "5")]))
+
+(define (expr tokens)
+    (cond
+    ;(case (first(first tokens))
+      ;[(ID INT RPAR)(term_tail (term(rest tokens)))]
+      [(equal? (first tokens)`ID)(term_tail (term tokens))]
+      [(equal? (first tokens)`INT)(term_tail (term tokens))]
+      [(equal? (first tokens)`LPAR)(term_tail (term tokens))]
+      [else (error)]))
+
+(define (term_tail tokens)
+    (cond
+    ;(case (first(first tokens))
+      ;[(+ -)(term_tail (term(rest tokens)))]
+      ;[(RPAR ID read write $$) tokens]
+      [(equal? (first tokens)`+ )(term_tail (term tokens))]
+      [(equal? (first tokens)`- )(term_tail (term tokens))]
+      [(equal? (first tokens)`RPAR) tokens]
+      [(equal? (first tokens)`ID) tokens]
+      [(equal? (first tokens)`read) tokens]
+      [(equal? (first tokens)`write) tokens]
+      [(equal? (first tokens)`$$) tokens]
+      [else (error)]))
+
+(define (term tokens)
+    (cond
+    ;(case (first(first tokens))
+     ; [(ID INT LPAR)(factor_tail (factor(rest tokens)))]
+      [(equal? (first tokens)`ID)(factor_tail (factor tokens))]
+      [(equal? (first tokens)`INT)(factor_tail(factor tokens))]
+      [(equal? (first tokens)`LPAR) (factor_tail(factor tokens))]
+      [else (error)]))
+
+(define (factor_tail tokens)
+    (cond
+    ;(case (first (first tokens))
+      ;[(* /)(factor_tail (factor(rest tokens)))]
+      ;[(+ - RPAR ID read write $$)tokens]
+      [(equal? (first tokens)`*) (factor_tail (factor(rest tokens)))]
+      [(equal? (first tokens)`/) (factor_tail (factor(rest tokens)))]
+      [(equal? (first tokens) `+) (rest tokens)]
+      [(equal? (first tokens) `-) (rest tokens)]
+      [(equal? (first tokens)`RPAR) tokens]
+      [(equal? (first tokens)`ID) tokens]
+      [(equal? (first tokens)`read) tokens]
+      [(equal? (first tokens)`write) tokens]
+      [(equal? (first tokens)`$$) tokens]
+      [else (error)]))
+
+(define (factor tokens)
    (cond
-    [(equal? (first tokens) "LPAR |(|") (RPAR(expr (rest tokens)))]
-    [(equal? (first tokens) "ID")]
-    [(equal? (first tokens) "INT")]
+   ;(case (first(first tokens))
+     ;[(LPAR) (RPAR(expr (rest tokens)))]
+     ;[(ID INT)(rest tokens)]
+    [(equal? (first tokens) `LPAR) (RPAR(expr (rest tokens)))]
+    [(equal? (first tokens) `ID) (rest tokens)]
+    [(equal? (first tokens) `INT) (rest tokens)]
     [else(error)]))
 
-  (define (factor_tail tokens)
+(define (add_op tokens)
     (cond
-      [(equal? "*" (first tokens))(factor_tail (factor(rest tokens)))]
-      [(equal? "/" (first tokens))(factor_tail (factor(rest tokens)))]
-      [(equal? "RPAR"(first tokens)) tokens]
-      [(equal? "ID" (first tokens)) tokens]
-      [(equal? "read" (first tokens)) tokens]
-      [(equal? "write" (first tokens)) tokens]
-      [(equal? "$$" (first tokens)) tokens]
-      [else (error)]))
+    ;(case (first(first tokens))
+     ;[(+ -) (rest tokens)]
+     [(equal? (first tokens) `+) tokens]
+     [(equal? (first tokens) `-) tokens]
+     [else (error)]))
 
-  (define (term tokens)
-    (cond
-      [(equal? "ID" (first tokens))(factor_tail (factor(rest tokens)))]
-      [(equal? "INT" (first tokens))(factor_tail(factor(rest tokens)))]
-      [(equal? "LPAR |(|" (first tokens)(factor_tail(factor(rest tokens))))]
-      [else (error "error")]))
+(define (mult_op tokens)
+     (cond
+     ;(case first tokens)
+    ;[(* /) (rest tokens)]
+    [(equal? (first tokens) `*) tokens]
+    [(equal? (first tokens) `/) tokens]
+    [else (error)]))
 
-  (define (term_tail tokens)
-    (cond
-      [(equal? "+" (first tokens))(term_tail (term(rest tokens)))]
-      [(equal? "-" (first tokens))(term_tail (term(rest tokens)))]
-      [(equal? "RPAR"(first tokens)) tokens]
-      [(equal? "ID" (first tokens)) tokens]
-      [(equal? "read" (first tokens)) tokens]
-      [(equal? "write" (first tokens)) tokens]
-      [(equal? "$$" (first tokens)) tokens]
-      [else (error )]))
+(define (parse input-file)
+ (program (make_token (open-input-file input-file)))) 
 
-  (define (expr tokens)
-    (cond
-      [(equal? "ID" (first tokens))(term_tail (term(rest tokens)))]
-      [(equal? "INT" (first tokens))(term_tail (term(rest tokens)))]
-      [(equal? "RPAR" (first tokens))(term_tail (term(rest tokens)))]
-      [else (error )]))
-
-  (define (stmt tokens)
-    (cond
-      [(equal? "ID" (first tokens))(expr(ass_op(rest tokens)))]
-      [(equal? "read" (first tokens))(ID(rest tokens))]
-      [(equal? "write" (first tokens))(expr(rest tokens))]
-      [else (error)]))
-
-  (define (stmt_list tokens)
-    (print "hi")
-    (cond
-      [(equal? "ID" (first tokens))(stmt_list(stmt(rest tokens)))]
-      [(equal? "read" (first tokens))(stmt_list(stmt(rest tokens)))]
-      [(equal? "write" (first tokens))(stmt_list(stmt(rest tokens)))]
-      [(equal? "$$" (first tokens))(stmt_list(stmt(rest tokens)))]
-      [else (error)]))
-
-  (define (program tokens)
-    (cond
-      [(equal? "ID" (first(first tokens)))(done(print(tokens)))]
-      [(equal? "read" (first(first tokens)))(done(print(tokens)))]
-      [(equal? "write" (first(first tokens)))(done(print(tokens)))]
-      [(equal? "$$" (first(first tokens)))(done(print(tokens)))]
-      [else (error)]))
-
-  (define (done tokens)
-    (cond
-     [(equal? "$$" (tokens))
-     (printf "successful")]))
-
-  (define (parse input-file)
- (program (tokenizer (open-input-file input-file))))
-
-;(parse "input02.txt")
+;(define (parse fileName)
+  ;(make_token (open-input-file fileName))))
+;(parse "input01.txt")
 
   ;(define (parse tokens)
-    ;(program tokens)
-    ;(define tokens (tokenizer(open-input-file "input02.txt"))))
+   ;(program tokens)
+    ;(define tokens (tokenizer(open-input-file "input01.txt"))))
 
 
-#|
-procedure match(expected)
-if input token = expected then consume input token()
-else parse error
-
-
-– – this is the start routine:
-procedure program()
-case input token of
-id, read, write, $$ :
-stmt list()
-match($$)
-otherwise parse error
-
-
-;procedure stmt list()
-;case input token of
-;id, read, write : stmt(); stmt list()
-$$ : skip – – epsilon production
-;otherwise parse error
-
-
-;procedure stmt()
-;case input token of
-;id : match(id); match(:=); expr()
-;read : match(read); match(id)
-;write : match(write); expr()
-;otherwise parse error
-
-;procedure term tail()
-;case input token of
-;+, - : add op(); term(); term tail()
-;), id, read, write, $$ :
-skip – – epsilon production
-;otherwise parse error
-
-;procedure factor tail()
-;case input token of
-;*, / : mult op(); factor(); factor tail()
-;+, -, ), id, read, write, $$ :
-skip – – epsilon production
-;otherwise parse error
-
-|#
+;procedure match(expected)
+;if input token = expected then consume input token()
+;else parse error
